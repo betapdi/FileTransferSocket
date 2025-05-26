@@ -7,6 +7,7 @@ public class Client {
     public static final String SERVER_HOST = "localhost";
     public static final int SERVER_PORT = 5001;
     public static final int CHUNK_SIZE = 1024 * 1024;
+    
 
     public static void main(String[] args) {
         try (
