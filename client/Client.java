@@ -1,4 +1,5 @@
 package client;
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -7,34 +8,49 @@ public class Client {
     public static final String SERVER_HOST = "localhost";
     public static final int SERVER_PORT = 5001;
     public static final int CHUNK_SIZE = 1024 * 1024;
-    
 
     public static void main(String[] args) {
+        Random random = new Random();
+        int clientId = 100 + random.nextInt(900);
+        String clientDirName = "client_" + clientId + "_files";
+
+        File clientDir = new File(clientDirName);
+        if (!clientDir.exists()) {
+            clientDir.mkdirs();
+        }
+
+        System.out.println("\nClient ID: " + clientId);
+        System.out.println("Download directory: " + clientDirName);
+
         try (
             Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
             DataInputStream dis = new DataInputStream(socket.getInputStream());
             DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
             Scanner scanner = new Scanner(System.in)
-        ) {
-            while (true) {
-                System.out.println("\nCommands: LIST, GET <file1> <file2>..., QUIT");
+            ) {
+                dos.writeInt(clientId);
+                dos.flush();
+                while (true) {
+                System.out.println("\nCommands: list, get <file1> <file2>..., quit" + "\n");
                 System.out.print("> ");
                 String input = scanner.nextLine();
                 dos.writeUTF(input);
 
-                if (input.equalsIgnoreCase("LIST")) {
+                if (input.equalsIgnoreCase("list")) {
                     int count = dis.readInt();
-                    System.out.println("Available files:");
+                    System.out.println("\nAvailable files:");
                     for (int i = 0; i < count; i++) {
                         System.out.println("- " + dis.readUTF());
                     }
-                } else if (input.startsWith("GET")) {
+                } else if (input.startsWith("get")) {
                     String[] parts = input.split(" ");
                     for (int i = 1; i < parts.length; i++) {
-                        receiveFile(dis);
+                        receiveFile(dis, clientDir);
                     }
-                } else if (input.equalsIgnoreCase("QUIT")) {
+                } else if (input.equalsIgnoreCase("quit")) {
                     break;
+                } else {
+                    System.out.println("\nUnknown command. Please try again.");
                 }
             }
         } catch (IOException e) {
@@ -42,18 +58,18 @@ public class Client {
         }
     }
 
-    private static void receiveFile(DataInputStream dis) throws IOException {
+    private static void receiveFile(DataInputStream dis, File downloadDir) throws IOException {
         String status = dis.readUTF();
+        String fileName = dis.readUTF();
         if (!status.equals("OK")) {
-            System.out.println("Error: File not found.");
+            System.out.println("File '" + fileName + "' does not exist.");
             return;
         }
 
-        String fileName = dis.readUTF();
         long fileSize = dis.readLong();
         long received = 0;
 
-        try (FileOutputStream fos = new FileOutputStream("client_" + fileName)) {
+        try (FileOutputStream fos = new FileOutputStream(new File(downloadDir, fileName))) {
             while (received < fileSize) {
                 int part = dis.readInt();
                 int chunkSize = dis.readInt();
